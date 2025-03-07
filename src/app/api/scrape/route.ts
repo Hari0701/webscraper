@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
 
     const elements = await page.evaluate(() => {
-      let data: { selector: string; text: string; attributes: Record<string, string | null> }[] = [];
+      const data: { selector: string; text: string; attributes: Record<string, string | null> }[] = [];
       document.querySelectorAll("*").forEach((el) => {
         const tagName = el.tagName.toLowerCase();
         const id = el.id ? `#${el.id}` : "";
