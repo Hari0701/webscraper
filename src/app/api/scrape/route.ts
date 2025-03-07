@@ -8,33 +8,33 @@ export async function GET(req: NextRequest) {
 
   try {
     const browser = await puppeteer.launch({
-      headless: true, // Use "new" mode to avoid issues
+      headless: true,
       args: ["--no-sandbox", "--disable-setuid-sandbox"],
     });
-
     const page = await browser.newPage();
-    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 }); // Set 30s timeout
+    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
 
     const elements = await page.evaluate(() => {
       let data: { selector: string; text: string; attributes: Record<string, string | null> }[] = [];
-
       document.querySelectorAll("*").forEach((el) => {
         const tagName = el.tagName.toLowerCase();
         const id = el.id ? `#${el.id}` : "";
-        const classList = el.classList?.length ? `.${Array.from(el.classList).join(".")}` : ""; // Ensure classList is a valid string
-
+        const classList = el.classList?.length ? `.${Array.from(el.classList).join(".")}` : "";
         const selector = `${tagName}${id}${classList}`;
+        const text = el.textContent?.trim() || "";
 
-        data.push({
-          selector: selector,
-          text: el.textContent?.trim() || "",
-          attributes: el.getAttributeNames().reduce((acc, name) => {
-            acc[name] = el.getAttribute(name);
-            return acc;
-          }, {} as Record<string, string | null>),
-        });
+        if (text) {
+          // Only store elements with text content
+          data.push({
+            selector: selector,
+            text: text,
+            attributes: el.getAttributeNames().reduce((acc, name) => {
+              acc[name] = el.getAttribute(name);
+              return acc;
+            }, {} as Record<string, string | null>),
+          });
+        }
       });
-
       return data;
     });
 

@@ -31,7 +31,8 @@ export default function Home() {
       alert("Failed to fetch data. Check console for details.");
     }
   };
-  const filteredData = data.filter((el) => el.selector.includes(search) || el.text.includes(search));
+
+  const filteredData = data.filter((el) => el.text.toLowerCase().includes(search.toLowerCase()));
 
   return (
     <div className="p-5">
