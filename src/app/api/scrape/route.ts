@@ -1,41 +1,67 @@
 import puppeteer from "puppeteer";
 import { NextRequest, NextResponse } from "next/server";
 
-export async function GET(req: NextRequest) {
+interface ElementData {
+  cssSelector: string;
+  xpathSelector: string;
+  text: string;
+  attributes: Record<string, string | null>;
+}
+
+export async function GET(req: NextRequest): Promise<NextResponse> {
   const { searchParams } = new URL(req.url);
   const url = searchParams.get("url");
-  if (!url) return NextResponse.json({ error: "URL is required" }, { status: 400 });
+
+  if (!url) {
+    return NextResponse.json({ error: "URL is required" }, { status: 400 });
+  }
 
   try {
     const browser = await puppeteer.launch({
       headless: true,
       args: ["--no-sandbox", "--disable-setuid-sandbox"],
     });
+
     const page = await browser.newPage();
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
 
-    const elements = await page.evaluate(() => {
-      const data: { selector: string; text: string; attributes: Record<string, string | null> }[] = [];
-      document.querySelectorAll("*").forEach((el) => {
-        const tagName = el.tagName.toLowerCase();
-        const id = el.id ? `#${el.id}` : "";
-        const classList = el.classList?.length ? `.${Array.from(el.classList).join(".")}` : "";
-        const selector = `${tagName}${id}${classList}`;
-        const text = el.textContent?.trim() || "";
+    const elements: ElementData[] = await page.evaluate(() => {
+      const getXPath = (element: Element): string => {
+        if (element.id) return `//*[@id="${element.id}"]`;
+        const parts: string[] = [];
+        let currentElement: Element | null = element;
 
-        if (text) {
-          // Only store elements with text content
-          data.push({
-            selector: selector,
-            text: text,
-            attributes: el.getAttributeNames().reduce((acc, name) => {
-              acc[name] = el.getAttribute(name);
-              return acc;
-            }, {} as Record<string, string | null>),
-          });
+        while (currentElement && currentElement.nodeType === Node.ELEMENT_NODE) {
+          let index = 1;
+          let sibling = currentElement.previousElementSibling as Element | null;
+
+          while (sibling) {
+            if (sibling.tagName === currentElement.tagName) index++;
+            sibling = sibling.previousElementSibling as Element | null;
+          }
+
+          parts.unshift(`${currentElement.tagName.toLowerCase()}[${index}]`);
+          currentElement = currentElement.parentElement;
         }
-      });
-      return data;
+        return `/${parts.join("/")}`;
+      };
+
+      return Array.from(document.querySelectorAll("*"))
+        .map((el) => {
+          const tagName = el.tagName.toLowerCase();
+          const id = el.id ? `#${el.id}` : "";
+          const classList = el.classList.length ? `.${Array.from(el.classList).join(".")}` : "";
+          const cssSelector = `${tagName}${id}${classList}`;
+          const xpathSelector = getXPath(el);
+          const text = el.textContent?.trim() || "";
+          const attributes = el.getAttributeNames().reduce((acc, name) => {
+            acc[name] = el.getAttribute(name);
+            return acc;
+          }, {} as Record<string, string | null>);
+
+          return text ? { cssSelector, xpathSelector, text, attributes } : null;
+        })
+        .filter((el): el is ElementData => el !== null);
     });
 
     await browser.close();
