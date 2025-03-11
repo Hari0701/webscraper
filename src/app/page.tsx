@@ -14,6 +14,7 @@ export default function Home() {
   const [search, setSearch] = useState<string>("");
   const [selectedElement, setSelectedElement] = useState<ElementData | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
+  const [iframeLoaded, setIframeLoaded] = useState<boolean>(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const scrapeWebsite = async () => {
@@ -21,11 +22,7 @@ export default function Home() {
     setLoading(true);
     try {
       const response = await fetch(`/api/scrape?url=${encodeURIComponent(url)}`);
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Error Response:", errorText);
-        throw new Error(`HTTP error! Status: ${response.status}`);
-      }
+      if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
       const result: ElementData[] = await response.json();
       setData(result);
     } catch (error) {
@@ -36,19 +33,55 @@ export default function Home() {
     }
   };
 
-  useEffect(() => {
-    if (iframeRef.current && selectedElement) {
-      const iframeDoc = iframeRef.current.contentDocument;
-      if (!iframeDoc) return;
-      iframeDoc.querySelectorAll(".highlighted-selector").forEach((el) => el.classList.remove("highlighted-selector"));
+  const injectHighlightStyles = () => {
+    if (!iframeRef.current || !iframeRef.current.contentDocument) return;
+    const iframeDoc = iframeRef.current.contentDocument;
 
-      const targetElement = iframeDoc.querySelector(selectedElement.cssSelector);
+    if (!iframeDoc.getElementById("highlight-style")) {
+      const style = iframeDoc.createElement("style");
+      style.id = "highlight-style";
+      style.innerHTML = `
+        .highlighted-selector {
+          outline: 4px solid red !important;
+          background-color: rgba(255, 0, 0, 0.2) !important;
+        }
+      `;
+      iframeDoc.head.appendChild(style);
+    }
+  };
+
+  const observeIframeMutations = () => {
+    if (!iframeRef.current || !iframeRef.current.contentDocument) return;
+    const iframeDoc = iframeRef.current.contentDocument;
+    const observer = new MutationObserver(() => injectHighlightStyles());
+    observer.observe(iframeDoc, { childList: true, subtree: true });
+  };
+
+  const handleIframeLoad = () => {
+    setIframeLoaded(true);
+    setTimeout(() => {
+      injectHighlightStyles();
+      observeIframeMutations();
+    }, 1000);
+  };
+
+  const handleSelection = (element: ElementData) => {
+    setSelectedElement(element);
+    setTimeout(() => {
+      if (!iframeRef.current || !iframeRef.current.contentDocument) return;
+      const iframeDoc = iframeRef.current.contentDocument;
+      iframeDoc.querySelectorAll(".highlighted-selector").forEach((el) => el.classList.remove("highlighted-selector"));
+      const targetElement = iframeDoc.querySelector(element.cssSelector);
       if (targetElement) {
         targetElement.classList.add("highlighted-selector");
         targetElement.scrollIntoView({ behavior: "smooth", block: "center" });
       }
-    }
-  }, [selectedElement]);
+    }, 500);
+  };
+
+  useEffect(() => {
+    if (iframeLoaded) injectHighlightStyles();
+  }, [iframeLoaded]);
 
   const filteredData = data.filter((el) => el.text.toLowerCase().includes(search.toLowerCase()));
 
@@ -59,6 +92,7 @@ export default function Home() {
           <div className="loader border-t-4 border-blue-500 rounded-full w-12 h-12 animate-spin"></div>
         </div>
       )}
+
       <div className="w-1/3 border-r p-4">
         <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Enter website URL" className="border p-2 mb-4 w-full" />
         <button onClick={scrapeWebsite} className="bg-blue-500 text-white p-2 rounded mb-4 w-full cursor-pointer">
@@ -72,14 +106,24 @@ export default function Home() {
         />
         <ul className="list-disc pl-5 max-h-[70vh] overflow-auto">
           {filteredData.map((el, index) => (
-            <li key={index} onClick={() => setSelectedElement(el)} className="cursor-pointer hover:bg-gray-200 p-2">
+            <li key={index} onClick={() => handleSelection(el)} className="cursor-pointer hover:bg-gray-200 p-2">
               {el.cssSelector}
             </li>
           ))}
         </ul>
       </div>
+
       <div className="w-2/3 p-4 flex flex-col">
-        {url && <iframe ref={iframeRef} src={url} className="w-full h-3/4 border"></iframe>}
+        {/* {url && (
+          <iframe
+            ref={iframeRef}
+            src={`/api/proxy?url=${encodeURIComponent(url)}`}
+            className="w-full h-3/4 border"
+            onLoad={handleIframeLoad}
+          />
+        )} */}
+        {url && <iframe ref={iframeRef} src={url} className="w-full h-3/4 border" onLoad={handleIframeLoad}></iframe>}
+
         {selectedElement ? (
           <div className="border p-4 rounded-lg shadow-lg mt-4 max-h-60 overflow-auto">
             <h2 className="text-xl font-bold mb-2">Selected Element</h2>
@@ -92,10 +136,8 @@ export default function Home() {
             <p>
               <strong>Text:</strong> {selectedElement.text}
             </p>
-            <p>
-              <strong>Attributes:</strong>
-              <pre className="bg-gray-100 p-2 rounded mt-2 overflow-auto">{JSON.stringify(selectedElement.attributes, null, 2)}</pre>
-            </p>
+            <strong>Attributes:</strong>
+            <pre className="bg-gray-100 p-2 rounded mt-2 overflow-auto">{JSON.stringify(selectedElement.attributes, null, 2)}</pre>
           </div>
         ) : (
           <p className="text-gray-500 mt-4">Select an element to view details</p>
