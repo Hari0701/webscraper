@@ -108,7 +108,7 @@ export default function Home() {
         <div className="w-1/3 border-r p-6 relative">
           {loading && (
             <div className="absolute inset-0 flex justify-center items-center z-10">
-              <div className="border-t-4 border-blue-500 rounded-full w-6 h-6 animate-spin"></div>
+              <div className="spinner"></div>{" "}
             </div>
           )}
           <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Enter website URL" className="border p-2 mb-4 w-full" />
