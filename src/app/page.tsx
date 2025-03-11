@@ -17,6 +17,7 @@ export default function Home() {
   const [loading, setLoading] = useState<boolean>(false);
   const [iframeLoaded, setIframeLoaded] = useState<boolean>(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [includeAll, setIncludeAll] = useState(true);
 
   const formatUrl = (inputUrl: string) => {
     if (!inputUrl.startsWith("http://") && !inputUrl.startsWith("https://")) {
@@ -92,7 +93,19 @@ export default function Home() {
     if (iframeLoaded) injectHighlightStyles();
   }, [iframeLoaded]);
 
-  const filteredData = data.filter((el) => el.text.toLowerCase().includes(search.toLowerCase()));
+  const filteredData = data
+    .filter((el) => el.text.toLowerCase().includes(search.toLowerCase()))
+    .reduce<ElementData[]>((acc, el) => {
+      if (includeAll) {
+        acc.push(el); // Include all matching elements
+      } else {
+        // Keep only the deepest/latest element based on XPath length
+        if (!acc.length || el.xpathSelector.length > acc[0].xpathSelector.length) {
+          acc = [el];
+        }
+      }
+      return acc;
+    }, []);
 
   return (
     <div className="h-screen flex flex-col">
@@ -108,7 +121,7 @@ export default function Home() {
         <div className="w-1/3 border-r p-6 relative">
           {loading && (
             <div className="absolute inset-0 flex justify-center items-center z-10">
-              <div className="spinner"></div>{" "}
+              <div className="spinner"></div>
             </div>
           )}
           <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Enter website URL" className="border p-2 mb-4 w-full" />
@@ -121,6 +134,10 @@ export default function Home() {
             placeholder="Search elements"
             className="border p-2 mb-4 w-full"
           />
+          <label className="flex items-center mb-4">
+            <input type="checkbox" checked={!includeAll} onChange={() => setIncludeAll((prev) => !prev)} className="mr-2" />
+            Show only the latest matching element
+          </label>
           <div className="relative max-h-[70vh] overflow-auto">
             {loading && (
               <div className="absolute inset-0 flex justify-center items-center z-10">
