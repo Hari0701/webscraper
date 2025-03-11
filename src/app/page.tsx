@@ -159,30 +159,29 @@ export default function Home() {
             </ul>
           </div>
         </div>
-
-        <div className="w-2/3 p-4 flex flex-col">
-          {url && (
+        {url && (
+          <div className="w-2/3 p-4 flex flex-col">
             <iframe ref={iframeRef} src={formatUrl(url)} className="w-full h-3/4 border rounded-sm" onLoad={handleIframeLoad}></iframe>
-          )}
-          {selectedElement ? (
-            <div className="border p-4 rounded-sm shadow-lg mt-4 max-h-60 overflow-auto">
-              <h2 className="text-xl font-bold mb-2">Selected Element</h2>
-              <p>
-                <strong>CSS Selector:</strong> {selectedElement.cssSelector}
-              </p>
-              <p>
-                <strong>XPath Selector:</strong> {selectedElement.xpathSelector}
-              </p>
-              <p>
-                <strong>Text:</strong> {selectedElement.text}
-              </p>
-              <strong>Attributes:</strong>
-              <pre className="bg-gray-100 p-2 rounded mt-2 overflow-auto">{JSON.stringify(selectedElement.attributes, null, 2)}</pre>
-            </div>
-          ) : (
-            <p className="text-gray-500 mt-4">Select an element to view details</p>
-          )}
-        </div>
+            {selectedElement ? (
+              <div className="border p-4 rounded-sm shadow-lg mt-4 max-h-60 overflow-auto">
+                <h2 className="text-xl font-bold mb-2">Selected Element</h2>
+                <p>
+                  <strong>CSS Selector:</strong> {selectedElement.cssSelector}
+                </p>
+                <p>
+                  <strong>XPath Selector:</strong> {selectedElement.xpathSelector}
+                </p>
+                <p>
+                  <strong>Text:</strong> {selectedElement.text}
+                </p>
+                <strong>Attributes:</strong>
+                <pre className="bg-gray-100 p-2 rounded mt-2 overflow-auto">{JSON.stringify(selectedElement.attributes, null, 2)}</pre>
+              </div>
+            ) : (
+              <p className="text-gray-500 mt-4">Select an element to view details</p>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
