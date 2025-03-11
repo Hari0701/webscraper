@@ -1,4 +1,5 @@
-import puppeteer from "puppeteer";
+import puppeteer from "puppeteer-core";
+import chromium from "@sparticuz/chromium";
 import { NextRequest, NextResponse } from "next/server";
 
 interface ElementData {
@@ -16,10 +17,22 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "URL is required" }, { status: 400 });
   }
 
+  let browser;
   try {
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    const isLocal = process.env.NODE_ENV !== "production";
+    let executablePath: string | undefined;
+
+    if (isLocal) {
+      executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+    } else {
+      executablePath = await chromium.executablePath();
+      if (!executablePath) throw new Error("Chromium executable path is undefined");
+    }
+
+    browser = await puppeteer.launch({
+      args: isLocal ? [] : chromium.args,
+      executablePath,
+      headless: isLocal ? true : chromium.headless,
     });
 
     const page = await browser.newPage();
@@ -68,6 +81,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json(elements);
   } catch (error) {
     console.error("Scraping Error:", error);
+    if (browser) await browser.close();
     return NextResponse.json({ error: "Failed to scrape the website", details: String(error) }, { status: 500 });
   }
 }

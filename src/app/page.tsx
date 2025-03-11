@@ -1,5 +1,6 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
+import { FaGithub } from "react-icons/fa"; // Import GitHub icon
 
 interface ElementData {
   cssSelector: string;
@@ -16,12 +17,22 @@ export default function Home() {
   const [loading, setLoading] = useState<boolean>(false);
   const [iframeLoaded, setIframeLoaded] = useState<boolean>(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [includeAll, setIncludeAll] = useState(true);
+
+  const formatUrl = (inputUrl: string) => {
+    if (!inputUrl.startsWith("http://") && !inputUrl.startsWith("https://")) {
+      return `https://${inputUrl}`;
+    }
+    return inputUrl;
+  };
 
   const scrapeWebsite = async () => {
     if (!url) return alert("Enter a valid URL");
+    const formattedUrl = formatUrl(url);
+    setData([]);
     setLoading(true);
     try {
-      const response = await fetch(`/api/scrape?url=${encodeURIComponent(url)}`);
+      const response = await fetch(`/api/scrape?url=${encodeURIComponent(formattedUrl)}`);
       if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
       const result: ElementData[] = await response.json();
       setData(result);
@@ -36,7 +47,6 @@ export default function Home() {
   const injectHighlightStyles = () => {
     if (!iframeRef.current || !iframeRef.current.contentDocument) return;
     const iframeDoc = iframeRef.current.contentDocument;
-
     if (!iframeDoc.getElementById("highlight-style")) {
       const style = iframeDoc.createElement("style");
       style.id = "highlight-style";
@@ -83,64 +93,94 @@ export default function Home() {
     if (iframeLoaded) injectHighlightStyles();
   }, [iframeLoaded]);
 
-  const filteredData = data.filter((el) => el.text.toLowerCase().includes(search.toLowerCase()));
+  const filteredData = data
+    .filter((el) => el.text.toLowerCase().includes(search.toLowerCase()))
+    .reduce<ElementData[]>((acc, el) => {
+      if (includeAll) {
+        acc.push(el); // Include all matching elements
+      } else {
+        // Keep only the deepest/latest element based on XPath length
+        if (!acc.length || el.xpathSelector.length > acc[0].xpathSelector.length) {
+          acc = [el];
+        }
+      }
+      return acc;
+    }, []);
 
   return (
-    <div className="p-5 flex h-screen relative">
-      {loading && (
-        <div className="absolute inset-0 bg-gray-800 bg-opacity-30 flex justify-center items-center z-50">
-          <div className="loader border-t-4 border-blue-500 rounded-full w-12 h-12 animate-spin"></div>
-        </div>
-      )}
+    <div className="h-screen flex flex-col">
+      <nav className="bg-[#174e4f] text-[#f3efc3] p-4 flex justify-between items-center shadow-md">
+        <span className="text-xl font-bold">WebScraper</span>
+        <a href="https://github.com/Hari0701/webscraper" target="_blank" rel="noopener noreferrer">
+          <FaGithub className="text-2xl hover:text-gray-300 transition" />
+        </a>
+      </nav>
 
-      <div className="w-1/3 border-r p-4">
-        <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Enter website URL" className="border p-2 mb-4 w-full" />
-        <button onClick={scrapeWebsite} className="bg-blue-500 text-white p-2 rounded mb-4 w-full cursor-pointer">
-          Scrape
-        </button>
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search elements"
-          className="border p-2 mb-4 w-full"
-        />
-        <ul className="list-disc pl-5 max-h-[70vh] overflow-auto">
-          {filteredData.map((el, index) => (
-            <li key={index} onClick={() => handleSelection(el)} className="cursor-pointer hover:bg-gray-200 p-2">
-              {el.cssSelector}
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      <div className="w-2/3 p-4 flex flex-col">
-        {/* {url && (
-          <iframe
-            ref={iframeRef}
-            src={`/api/proxy?url=${encodeURIComponent(url)}`}
-            className="w-full h-3/4 border"
-            onLoad={handleIframeLoad}
+      {/* Main Content */}
+      <div className="flex flex-grow relative">
+        <div className="w-1/3 border-r p-6 relative">
+          {loading && (
+            <div className="absolute inset-0 flex justify-center items-center z-10">
+              <div className="spinner"></div>
+            </div>
+          )}
+          <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Enter website URL" className="border p-2 mb-4 w-full" />
+          <button onClick={scrapeWebsite} className="bg-[#174e4f] text-[#f3efc3] p-2 rounded mb-4 w-full cursor-pointer">
+            Scrape
+          </button>
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search elements"
+            className="border p-2 mb-4 w-full"
           />
-        )} */}
-        {url && <iframe ref={iframeRef} src={url} className="w-full h-3/4 border" onLoad={handleIframeLoad}></iframe>}
-
-        {selectedElement ? (
-          <div className="border p-4 rounded-lg shadow-lg mt-4 max-h-60 overflow-auto">
-            <h2 className="text-xl font-bold mb-2">Selected Element</h2>
-            <p>
-              <strong>CSS Selector:</strong> {selectedElement.cssSelector}
-            </p>
-            <p>
-              <strong>XPath Selector:</strong> {selectedElement.xpathSelector}
-            </p>
-            <p>
-              <strong>Text:</strong> {selectedElement.text}
-            </p>
-            <strong>Attributes:</strong>
-            <pre className="bg-gray-100 p-2 rounded mt-2 overflow-auto">{JSON.stringify(selectedElement.attributes, null, 2)}</pre>
+          <label className="flex items-center mb-4">
+            <input type="checkbox" checked={!includeAll} onChange={() => setIncludeAll((prev) => !prev)} className="mr-2" />
+            Show only the latest matching element
+          </label>
+          <div className="relative max-h-[70vh] overflow-auto">
+            {loading && (
+              <div className="absolute inset-0 flex justify-center items-center z-10">
+                <div className="border-t-4 border-blue-500 rounded-full w-6 h-6 animate-spin"></div>
+              </div>
+            )}
+            <ul className="list-disc pl-5">
+              {filteredData.map((el, index) => (
+                <li
+                  key={index}
+                  onClick={() => handleSelection(el)}
+                  className={`cursor-pointer p-2 transition ${
+                    selectedElement?.cssSelector === el.cssSelector ? "bg-[#f3efc3]" : "hover:bg-gray-200"
+                  }`}
+                >
+                  {el.cssSelector}
+                </li>
+              ))}
+            </ul>
           </div>
-        ) : (
-          <p className="text-gray-500 mt-4">Select an element to view details</p>
+        </div>
+        {url && (
+          <div className="w-2/3 p-4 flex flex-col">
+            <iframe ref={iframeRef} src={formatUrl(url)} className="w-full h-3/4 border rounded-sm" onLoad={handleIframeLoad}></iframe>
+            {selectedElement ? (
+              <div className="border p-4 rounded-sm shadow-lg mt-4 max-h-60 overflow-auto">
+                <h2 className="text-xl font-bold mb-2">Selected Element</h2>
+                <p>
+                  <strong>CSS Selector:</strong> {selectedElement.cssSelector}
+                </p>
+                <p>
+                  <strong>XPath Selector:</strong> {selectedElement.xpathSelector}
+                </p>
+                <p>
+                  <strong>Text:</strong> {selectedElement.text}
+                </p>
+                <strong>Attributes:</strong>
+                <pre className="bg-gray-100 p-2 rounded mt-2 overflow-auto">{JSON.stringify(selectedElement.attributes, null, 2)}</pre>
+              </div>
+            ) : (
+              <p className="text-gray-500 mt-4">Select an element to view details</p>
+            )}
+          </div>
         )}
       </div>
     </div>
