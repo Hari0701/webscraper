@@ -1,5 +1,6 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
+import { FaGithub } from "react-icons/fa"; // Import GitHub icon
 
 interface ElementData {
   cssSelector: string;
@@ -87,7 +88,13 @@ export default function Home() {
 
   return (
     <div className="h-screen flex flex-col">
-      <nav className="bg-[#174e4f] text-[#f3efc3] p-4 text-left text-xl font-bold shadow-md">WebScraper</nav>
+      <nav className="bg-[#174e4f] text-[#f3efc3] p-4 flex justify-between items-center shadow-md">
+        <span className="text-xl font-bold">WebScraper</span>
+        <a href="https://github.com/Hari0701/webscraper" target="_blank" rel="noopener noreferrer">
+          <FaGithub className="text-2xl hover:text-gray-300 transition" />
+        </a>
+      </nav>
+
       {/* Main Content */}
       <div className="flex flex-grow relative">
         <div className="w-1/3 border-r p-6 relative">
@@ -123,14 +130,6 @@ export default function Home() {
         </div>
 
         <div className="w-2/3 p-4 flex flex-col">
-          {/* {url && (
-          <iframe
-            ref={iframeRef}
-            src={`/api/proxy?url=${encodeURIComponent(url)}`}
-            className="w-full h-3/4 border"
-            onLoad={handleIframeLoad}
-          />
-        )} */}
           {url && <iframe ref={iframeRef} src={url} className="w-full h-3/4 border" onLoad={handleIframeLoad}></iframe>}
           {selectedElement ? (
             <div className="border p-4 rounded-lg shadow-lg mt-4 max-h-60 overflow-auto">
