@@ -18,12 +18,20 @@ export default function Home() {
   const [iframeLoaded, setIframeLoaded] = useState<boolean>(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
+  const formatUrl = (inputUrl: string) => {
+    if (!inputUrl.startsWith("http://") && !inputUrl.startsWith("https://")) {
+      return `https://${inputUrl}`;
+    }
+    return inputUrl;
+  };
+
   const scrapeWebsite = async () => {
     if (!url) return alert("Enter a valid URL");
+    const formattedUrl = formatUrl(url);
     setData([]);
     setLoading(true);
     try {
-      const response = await fetch(`/api/scrape?url=${encodeURIComponent(url)}`);
+      const response = await fetch(`/api/scrape?url=${encodeURIComponent(formattedUrl)}`);
       if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
       const result: ElementData[] = await response.json();
       setData(result);
@@ -121,7 +129,13 @@ export default function Home() {
             )}
             <ul className="list-disc pl-5">
               {filteredData.map((el, index) => (
-                <li key={index} onClick={() => handleSelection(el)} className="cursor-pointer hover:bg-gray-200 p-2">
+                <li
+                  key={index}
+                  onClick={() => handleSelection(el)}
+                  className={`cursor-pointer p-2 transition ${
+                    selectedElement?.cssSelector === el.cssSelector ? "bg-[#f3efc3]" : "hover:bg-gray-200"
+                  }`}
+                >
                   {el.cssSelector}
                 </li>
               ))}
@@ -130,9 +144,11 @@ export default function Home() {
         </div>
 
         <div className="w-2/3 p-4 flex flex-col">
-          {url && <iframe ref={iframeRef} src={url} className="w-full h-3/4 border" onLoad={handleIframeLoad}></iframe>}
+          {url && (
+            <iframe ref={iframeRef} src={formatUrl(url)} className="w-full h-3/4 border rounded-sm" onLoad={handleIframeLoad}></iframe>
+          )}
           {selectedElement ? (
-            <div className="border p-4 rounded-lg shadow-lg mt-4 max-h-60 overflow-auto">
+            <div className="border p-4 rounded-sm shadow-lg mt-4 max-h-60 overflow-auto">
               <h2 className="text-xl font-bold mb-2">Selected Element</h2>
               <p>
                 <strong>CSS Selector:</strong> {selectedElement.cssSelector}
